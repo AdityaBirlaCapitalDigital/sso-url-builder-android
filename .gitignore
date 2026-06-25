@@ -17,7 +17,6 @@ local.properties
 signing.properties
 
 # APK/AAB
-*.apk
 *.aab
 
 # OS
