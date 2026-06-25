@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSO URL Builder v4.1 - ABCD (RedirectionV2)</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #0d1117; }
+        .stepper { display: flex; flex-direction: column; gap: 0; }
+        .step { border-left: 2px solid #30363d; margin-left: 16px; padding-left: 24px; padding-bottom: 24px; position: relative; }
+        .step:last-child { border-left: 2px solid transparent; padding-bottom: 0; }
+        .step::before { content: ''; position: absolute; left: -9px; top: 0; width: 16px; height: 16px; border-radius: 50%; background: #30363d; border: 2px solid #0d1117; }
+        .step.active::before { background: #58a6ff; }
+        .step.completed::before { background: #3fb950; }
+        .step.error::before { background: #f85149; }
+        .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; cursor: pointer; }
+        .step-number { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; background: #21262d; color: #8b949e; }
+        .step.active .step-number { background: #58a6ff; color: #fff; }
+        .step.completed .step-number { background: #3fb950; color: #fff; }
+        .step-title { font-size: 16px; font-weight: 600; color: #c9d1d9; }
+        .step-subtitle { font-size: 12px; color: #8b949e; }
+        .step-content { background: #21262d; border-radius: 8px; padding: 16px; }
+        .step-content.collapsed { display: none; }
+        .form-control, .form-select { background: #0d1117; border-color: #30363d; color: #c9d1d9; }
+        .form-control:focus, .form-select:focus { background: #0d1117; border-color: #58a6ff; color: #c9d1d9; box-shadow: none; }
+        .form-control::placeholder { color: #6e7681; }
+        .form-control:read-only { background: #161b22; }
+        textarea { font-family: monospace; font-size: 12px; }
+        .curl-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #c9d1d9; }
+        .config-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+        .form-label { font-size: 12px; margin-bottom: 4px; color: #8b949e; }
+        .small-input { font-size: 12px; padding: 6px 10px; }
+        .alert { font-size: 13px; }
+        .text-muted-custom { color: #6e7681 !important; }
+        .badge-new { background: #238636; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+        .form-preview { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; font-family: monospace; font-size: 11px; }
+        .form-preview code { color: #79c0ff; }
+        .form-preview .tag { color: #ff7b72; }
+        .form-preview .attr { color: #79c0ff; }
+        .form-preview .value { color: #a5d6ff; }
+        .main-content { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 24px; }
+
+        .floating-back-btn {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 2000;
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .submit-loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .submit-loader-box {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #c9d1d9;
+        }
+
+        @media (max-width: 768px) {
+            .navbar-brand { font-size: 14px; line-height: 1.4; white-space: normal; }
+            .container.py-4 { padding-top: 12px !important; padding-bottom: 84px !important; }
+            .main-content { padding: 14px; }
+            .step { margin-left: 10px; padding-left: 16px; padding-bottom: 16px; }
+            .step::before { left: -10px; }
+            .step-header { gap: 8px; margin-bottom: 12px; }
+            .step-title { font-size: 15px; }
+            .step-subtitle { font-size: 11px; }
+            .step-content { padding: 12px; }
+            .d-flex.gap-2.mb-3 { flex-direction: column; }
+            .d-flex.gap-2.mb-3 > button { width: 100%; }
+            .floating-back-btn { right: 12px; bottom: 12px; }
+        }
+    </style>
+</head>
+
+<body class="text-white">
+    <nav class="navbar" style="background: #161b22;">
+        <div class="container">
+            <span class="navbar-brand text-white fw-bold">SSO URL Builder v4.1 - ABCD <span class="badge-new">RedirectionV2</span></span>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- Quick Info -->
+        <div class="alert mb-4 small" style="background: #161b22; border: 1px solid #30363d; color: #8b949e;">
+            <strong>v4.1:</strong> Uses new <code style="color: #f0883e;">redirectionV2</code> API with header-based auth<br>
+            <strong>Flow:</strong> Get UUID via redirectionV2 → Build Payload → POST to common-web → Auto-redirect to product app<br>
+            <strong>Endpoint:</strong> <code style="color: #58a6ff;">POST /abc-web-common/api/v1/redirectionV2</code><br>
+            <strong>Headers:</strong> <code style="color: #58a6ff;">mobileNumber, serviceOrigin, Source, Secret, xenv</code><br>
+            <strong>Payload:</strong> <code style="color: #58a6ff;">ssoToken, channelId, productCode, subProductCode, operation?, agentId?, transactionDetails?, partnerConfig?</code>
+        </div>
+
+        <div class="main-content">
+            <div class="stepper">
+                <!-- Step 1: Execute cURL -->
+                <div class="step active" id="step1">
+                    <div class="step-header" onclick="toggleStep('step1')">
+                        <span class="step-number">1</span>
+                        <div>
+                            <div class="step-title">Execute cURL Command (RedirectionV2)</div>
+                            <div class="step-subtitle">Configure and run in terminal to get UUID</div>
+                        </div>
+                    </div>
+                    <div class="step-content">
+                        <div class="config-card mb-3">
+                            <h6 class="text-info mb-2">Request Data (used to build encrypted payload)</h6>
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label small">Mobile Number</label>
+                                    <input id="mobileNumber" type="text" class="form-control small-input" value="9008878907" oninput="generateCurl()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Username</label>
+                                    <input id="username" type="text" class="form-control small-input" value="Manish Hundekar" oninput="generateCurl()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Product ID</label>
+                                    <input id="productId" type="text" class="form-control small-input" value="goldloan" oninput="generateCurl()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">LMS ID</label>
+                                    <input id="lmsId" type="text" class="form-control small-input" value="00QBl00000EajeTMAR" oninput="generateCurl()">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="config-card mb-3">
+                            <h6 class="text-info mb-2">Headers & Config</h6>
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label small">Service Origin</label>
+                                    <select id="serviceOrigin" class="form-select small-input" onchange="generateCurl()">
+                                        <option value="Web" selected>Web</option>
+                                        <option value="Mobile">Mobile</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Source</label>
+                                    <input id="source" type="text" class="form-control small-input" value="ABCD_WEB_REDIRECTION" oninput="generateCurl()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Secret</label>
+                                    <input id="secret" type="text" class="form-control small-input" value="9876556789275439" oninput="generateCurl()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Base URL</label>
+                                    <select id="curlBaseUrl" class="form-select small-input" onchange="generateCurl()">
+                                        <option value="https://abcduat1.abcscuat.com" selected>UAT1 (abcduat1.abcscuat.com)</option>
+                                        <option value="https://abcduat2.abcscuat.com">UAT2 (abcduat2.abcscuat.com)</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3 d-none" id="customCurlUrlContainer">
+                            <div class="col-md-6">
+                                <label class="form-label small">Custom Base URL</label>
+                                <input id="customCurlBaseUrl" type="text" class="form-control small-input" placeholder="https://your-domain.com" oninput="generateCurl()">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <button onclick="generateCurl()" class="btn btn-warning btn-sm d-block w-100">Regenerate cURL</button>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="small text-muted-custom mt-2">
+                                    <strong>Auto-generated:</strong> xenv = encrypt(mobileNumber) | data = encrypt({mobileNumber, username, productId, lmsId})
+                                </div>
+                            </div>
+                        </div>
+                        <p class="small text-muted-custom mb-2">Copy and execute this cURL command in your terminal to get the UUID:</p>
+                        <div class="curl-box" id="curlCommand"></div>
+                        <button onclick="copyCurl()" class="btn btn-info btn-sm mt-3">Copy cURL</button>
+                        <div id="step1Error" class="alert alert-danger py-2 d-none small mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Paste UUID -->
+                <div class="step" id="step2">
+                    <div class="step-header" onclick="toggleStep('step2')">
+                        <span class="step-number">2</span>
+                        <div>
+                            <div class="step-title">Paste UUID</div>
+                            <div class="step-subtitle">Enter the UUID from the API response</div>
+                        </div>
+                    </div>
+                    <div class="step-content collapsed">
+                        <label class="form-label">API Response (paste full JSON)</label>
+                        <textarea id="apiResponse" class="form-control mb-3" rows="4" placeholder='Paste the API response JSON here, e.g.: {"uuid": "9894968b-9451-4c16-880b-a422b820f9fe"}'></textarea>
+                        
+                        <div class="mb-3">
+                            <button onclick="extractUuid()" class="btn btn-success">Extract UUID</button>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Or enter UUID directly:</label>
+                            <input id="ssoToken" type="text" class="form-control" placeholder="e.g., 9894968b-9451-4c16-880b-a422b820f9fe">
+                        </div>
+                        
+                        <div id="step2Error" class="alert alert-danger py-2 d-none small"></div>
+                        <div id="step2Success" class="alert alert-success py-2 d-none small"></div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Build SSO Payload -->
+                <div class="step" id="step3">
+                    <div class="step-header" onclick="toggleStep('step3')">
+                        <span class="step-number">3</span>
+                        <div>
+                            <div class="step-title">Build SSO Payload</div>
+                            <div class="step-subtitle">Configure routing, transaction and partner details</div>
+                        </div>
+                    </div>
+                    <div class="step-content collapsed">
+                        <div class="row g-3">
+                            <!-- Routing Configuration -->
+                            <div class="col-12">
+                                <div class="config-card">
+                                    <h6 class="text-info mb-3">Routing Configuration (Required)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Channel ID <span class="text-danger">*</span></label>
+                                            <select id="channelId" class="form-select small-input">
+                                                <option value="APP" selected>APP</option>
+                                                <option value="WEB">WEB</option>
+                                                <option value="MBB">MBB</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Product Code <span class="text-danger">*</span></label>
+                                            <select id="productCode" class="form-select small-input" onchange="updateSubProducts()">
+                                                <option value="digimetal" selected>digimetal</option>
+                                                <option value="loans">loans</option>
+                                                <option value="investments">investments</option>
+                                                <option value="tracks">tracks</option>
+                                                <option value="cards">cards</option>
+                                                <option value="insurance">insurance</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Sub Product Code <span class="text-danger">*</span></label>
+                                            <select id="subProductCode" class="form-select small-input">
+                                                <option value="gold" selected>gold</option>
+                                                <option value="silver">silver</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Operation (Optional)</label>
+                                <select id="operation" class="form-select small-input">
+                                    <option value="">None (Dashboard)</option>
+                                    <option value="BUY">BUY</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Agent ID (Optional)</label>
+                                <input id="agentId" type="text" class="form-control small-input" placeholder="e.g., AGENT123">
+                                <small class="text-muted-custom">If set, journey is agent-assisted</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Common Web Environment</label>
+                                <select id="environment" class="form-select small-input" onchange="handleEnvChange()">
+                                    <option value="http://localhost:4000/abcd-common" selected>Local (localhost:4000)</option>
+                                    <option value="https://abcddev.abcscuat.com/abcd-common">DEV (abcddev.abcscuat.com)</option>
+                                    <option value="https://abcduat1.abcscuat.com/abcd-common">UAT (abcduat1.abcscuat.com)</option>
+                                    <option value="other">Other (Custom URL)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 d-none" id="customUrlContainer">
+                                <label class="form-label">Custom URL</label>
+                                <input id="customUrl" type="text" class="form-control small-input" placeholder="https://your-custom-domain.com/abcd-common">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Transaction Details (JSON, Optional)</label>
+                                <textarea id="transactionDetails" class="form-control small-input" rows="8">{
+  "value": "10000",
+  "amount": "10000.00",
+  "quantity": "0.6505",
+  "calculationType": "A",
+  "channel": "Web",
+  "metalType": "XAU/INR",
+  "currencyPair": "XAU/INR"
+}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Partner Config (JSON, Optional)</label>
+                                <textarea id="partnerConfig" class="form-control small-input" rows="8">{
+  "partnerCode": "vodafoneidea",
+  "partnerName": "Vodafone Idea"
+}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <button onclick="buildPayload()" class="btn btn-success">Build Payload</button>
+                            </div>
+                            <div class="col-12">
+                                <div id="step3Error" class="alert alert-danger py-2 d-none small"></div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">SSO Payload (JSON)</label>
+                                <textarea id="ssoPayload" class="form-control" rows="8" readonly></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Submit SSO -->
+                <div class="step" id="step4">
+                    <div class="step-header" onclick="toggleStep('step4')">
+                        <span class="step-number">4</span>
+                        <div>
+                            <div class="step-title">Submit SSO (POST)</div>
+                            <div class="step-subtitle">Submit form to common-web (opens in new tab)</div>
+                        </div>
+                    </div>
+                    <div class="step-content collapsed">
+                        <div id="step4Error" class="alert alert-danger py-2 d-none small mb-3"></div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Target URL</label>
+                            <input id="targetUrl" type="text" class="form-control" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Form Preview (HTML)</label>
+                            <div id="formPreview" class="form-preview"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mb-3">
+                            <button id="submitSsoBtn" onclick="submitSso()" class="btn btn-primary btn-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-up-right me-2" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
+                                    <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
+                                </svg>
+                                Submit SSO (New Tab)
+                            </button>
+                            <button onclick="copyFormHtml()" class="btn btn-outline-secondary">Copy Form HTML</button>
+                        </div>
+
+                        <div class="alert alert-info py-2 small">
+                            <strong>Flow:</strong> This tool → POST to common-web → Auto-redirect to product app (digimetal/loans/etc)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden form for SSO submission -->
+    <form id="hiddenSsoForm" method="POST" target="_blank" style="display:none;">
+        <input type="hidden" name="ssoToken" id="formSsoToken">
+        <input type="hidden" name="channelId" id="formChannelId">
+        <input type="hidden" name="productCode" id="formProductCode">
+        <input type="hidden" name="subProductCode" id="formSubProductCode">
+        <input type="hidden" name="operation" id="formOperation">
+        <input type="hidden" name="transactionDetails" id="formTransactionDetails">
+        <input type="hidden" name="partnerConfig" id="formPartnerConfig">
+        <input type="hidden" name="agentId" id="formAgentId">
+    </form>
+
+    <button id="floatingBackBtn" type="button" class="btn btn-outline-light floating-back-btn" onclick="goBackStep()">Back</button>
+
+    <div id="submitLoader" class="submit-loader-overlay d-none">
+        <div class="submit-loader-box">
+            <div class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></div>
+            <span>Submitting and opening destination...</span>
+        </div>
+    </div>
+
+    <script>
+        // ==================== UTILITY FUNCTIONS ====================
+        
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.remove('d-none');
+        }
+
+        function clearError(elementId) {
+            const el = document.getElementById(elementId);
+            el.textContent = '';
+            el.classList.add('d-none');
+        }
+
+        function showSuccess(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.remove('d-none');
+        }
+
+        function hideSuccess(elementId) {
+            const el = document.getElementById(elementId);
+            el.classList.add('d-none');
+        }
+
+        function showSubmitLoader(show) {
+            const loader = document.getElementById('submitLoader');
+            if (!loader) return;
+            if (show) {
+                loader.classList.remove('d-none');
+            } else {
+                loader.classList.add('d-none');
+            }
+        }
+
+        function setStepStatus(stepId, status) {
+            const step = document.getElementById(stepId);
+            step.classList.remove('active', 'completed', 'error');
+            step.classList.add(status);
+        }
+
+        function toggleStep(stepId) {
+            const step = document.getElementById(stepId);
+            const content = step.querySelector('.step-content');
+            
+            // Collapse all other steps
+            document.querySelectorAll('.step-content').forEach(c => {
+                if (c !== content) c.classList.add('collapsed');
+            });
+            
+            // Toggle current step
+            content.classList.toggle('collapsed');
+            
+            // Set active if expanding
+            if (!content.classList.contains('collapsed')) {
+                document.querySelectorAll('.step').forEach(s => {
+                    if (!s.classList.contains('completed') && !s.classList.contains('error')) {
+                        s.classList.remove('active');
+                    }
+                });
+                if (!step.classList.contains('completed') && !step.classList.contains('error')) {
+                    step.classList.add('active');
+                }
+            }
+        }
+
+        function getCurrentOpenStepId() {
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            for (const stepId of steps) {
+                const step = document.getElementById(stepId);
+                if (!step) continue;
+                const content = step.querySelector('.step-content');
+                if (content && !content.classList.contains('collapsed')) {
+                    return stepId;
+                }
+            }
+            return 'step1';
+        }
+
+        function goBackStep() {
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            const currentStep = getCurrentOpenStepId();
+            const currentIndex = steps.indexOf(currentStep);
+            if (currentIndex > 0) {
+                toggleStep(steps[currentIndex - 1]);
+                return;
+            }
+            if (window.history.length > 1) {
+                window.history.back();
+            }
+        }
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return str;
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // ==================== PRODUCT/SUBPRODUCT MAPPING ====================
+
+        const productSubProductMap = {
+            'digimetal': ['gold', 'silver'],
+            'loans': ['personal', 'gold'],
+            'investments': ['mutual-funds', 'fixed-deposits'],
+            'tracks': ['credit', 'simply-invest'],
+            'cards': ['credit-card'],
+            'insurance': ['motor', 'pocket', 'travel', 'health']
+        };
+
+        function updateSubProducts() {
+            const productCode = document.getElementById('productCode').value;
+            const subProductSelect = document.getElementById('subProductCode');
+            const subProducts = productSubProductMap[productCode] || [];
+            
+            subProductSelect.innerHTML = '';
+            subProducts.forEach((sp, index) => {
+                const option = document.createElement('option');
+                option.value = sp;
+                option.textContent = sp;
+                if (index === 0) option.selected = true;
+                subProductSelect.appendChild(option);
+            });
+        }
+
+        // ==================== ENCRYPTION ====================
+
+        const ENCRYPT_KEY = '6f7e8d9c0b1a2e3d4c5b6a79807f6e5d';
+        const ENCRYPT_IV = 'fedcba0987654321';
+
+        async function encrypt(plainText) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(ENCRYPT_KEY);
+            const ivData = encoder.encode(ENCRYPT_IV);
+
+            const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-CBC' }, false, ['encrypt']);
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: ivData }, cryptoKey, encoder.encode(plainText));
+            return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+        }
+
+        // ==================== STEP 1: CURL GENERATION (RedirectionV2) ====================
+
+        function getCurlBaseUrl() {
+            const select = document.getElementById('curlBaseUrl');
+            if (select.value === 'custom') {
+                return document.getElementById('customCurlBaseUrl').value.trim();
+            }
+            return select.value;
+        }
+
+        async function generateCurl() {
+            clearError('step1Error');
+            
+            try {
+                const mobileNumber = document.getElementById('mobileNumber').value.trim();
+                const username = document.getElementById('username').value.trim();
+                const productId = document.getElementById('productId').value.trim();
+                const lmsId = document.getElementById('lmsId').value.trim();
+                const serviceOrigin = document.getElementById('serviceOrigin').value;
+                const source = document.getElementById('source').value.trim();
+                const secret = document.getElementById('secret').value.trim();
+                const baseUrl = getCurlBaseUrl();
+
+                if (!mobileNumber) throw new Error('Mobile number is required');
+                if (!username) throw new Error('Username is required');
+                if (!productId) throw new Error('Product ID is required');
+                if (!lmsId) throw new Error('LMS ID is required');
+                if (!source) throw new Error('Source is required');
+                if (!secret) throw new Error('Secret is required');
+                if (!baseUrl) throw new Error('Base URL is required');
+
+                // Auto-generate xenv: encrypted mobile number
+                const xenv = await encrypt(mobileNumber);
+
+                // Auto-generate encrypted data from form fields
+                const requestPayload = JSON.stringify({
+                    mobileNumber,
+                    username,
+                    productId,
+                    lmsId
+                });
+                const encryptedData = await encrypt(requestPayload);
+
+                const curl = `curl --location '${baseUrl}/abc-web-common/api/v1/redirectionV2' \\
+--header 'mobileNumber: ${mobileNumber}' \\
+--header 'serviceOrigin: ${serviceOrigin}' \\
+--header 'Source: ${source}' \\
+--header 'Secret: ${secret}' \\
+--header 'Content-Type: application/json' \\
+--header 'xenv: ${xenv}' \\
+--data '{
+    "data": "${encryptedData}"
+}'`;
+
+                document.getElementById('curlCommand').textContent = curl;
+
+                // Show/hide custom URL input
+                const customContainer = document.getElementById('customCurlUrlContainer');
+                if (document.getElementById('curlBaseUrl').value === 'custom') {
+                    customContainer.classList.remove('d-none');
+                } else {
+                    customContainer.classList.add('d-none');
+                }
+
+            } catch (error) {
+                showError('step1Error', 'Error generating cURL: ' + error.message);
+                document.getElementById('curlCommand').textContent = 'Error generating cURL. Check inputs.';
+            }
+        }
+        
+        function copyCurl() {
+            const curl = document.getElementById('curlCommand').textContent;
+            navigator.clipboard.writeText(curl).then(() => alert('cURL copied! Paste in terminal and run.'));
+        }
+
+        // ==================== STEP 2: UUID EXTRACTION ====================
+
+        function extractUuid() {
+            clearError('step2Error');
+            hideSuccess('step2Success');
+
+            try {
+                const responseText = document.getElementById('apiResponse').value.trim();
+
+                if (!responseText) throw new Error('Paste the API response JSON first');
+
+                let data;
+                try { data = JSON.parse(responseText); }
+                catch (e) { throw new Error('Invalid JSON response'); }
+
+                const uuid = data.uuid;
+                if (!uuid) throw new Error('UUID not found in response. Expected "uuid" field.');
+
+                document.getElementById('ssoToken').value = uuid;
+                showSuccess('step2Success', 'UUID extracted: ' + uuid);
+                setStepStatus('step2', 'completed');
+                
+                setTimeout(() => toggleStep('step3'), 300);
+
+            } catch (error) {
+                showError('step2Error', error.message);
+                setStepStatus('step2', 'error');
+            }
+        }
+
+        // ==================== STEP 3: PAYLOAD BUILDING ====================
+
+        let payloadData = null;
+
+        function buildPayload() {
+            clearError('step3Error');
+
+            try {
+                const ssoToken = document.getElementById('ssoToken').value.trim();
+                if (!ssoToken) throw new Error('UUID is required. Complete Step 2 first.');
+
+                const channelId = document.getElementById('channelId').value;
+                const productCode = document.getElementById('productCode').value;
+                const subProductCode = document.getElementById('subProductCode').value;
+                const operation = document.getElementById('operation').value;
+                const agentId = document.getElementById('agentId').value.trim();
+                const transactionDetailsText = document.getElementById('transactionDetails').value.trim();
+                const partnerConfigText = document.getElementById('partnerConfig').value.trim();
+
+                const ssoData = { 
+                    ssoToken,
+                    channelId,
+                    productCode,
+                    subProductCode
+                };
+
+                if (operation) ssoData.operation = operation;
+                if (agentId) ssoData.agentId = agentId;
+
+                if (transactionDetailsText) {
+                    try {
+                        ssoData.transactionDetails = JSON.parse(transactionDetailsText);
+                    } catch (e) { throw new Error('Invalid Transaction Details JSON'); }
+                }
+
+                if (partnerConfigText) {
+                    try { ssoData.partnerConfig = JSON.parse(partnerConfigText); }
+                    catch (e) { throw new Error('Invalid Partner Config JSON'); }
+                }
+
+                payloadData = ssoData;
+                document.getElementById('ssoPayload').value = JSON.stringify(ssoData, null, 2);
+                setStepStatus('step3', 'completed');
+                
+                setTimeout(() => {
+                    toggleStep('step4');
+                    updateFormPreview();
+                }, 300);
+
+            } catch (error) {
+                showError('step3Error', error.message);
+                setStepStatus('step3', 'error');
+            }
+        }
+
+        // ==================== STEP 4: FORM SUBMISSION ====================
+
+        function getEnvironmentUrl() {
+            const envSelect = document.getElementById('environment');
+            if (envSelect.value === 'other') {
+                return document.getElementById('customUrl').value.trim();
+            }
+            return envSelect.value;
+        }
+
+        function handleEnvChange() {
+            const envSelect = document.getElementById('environment');
+            const customUrlContainer = document.getElementById('customUrlContainer');
+            if (envSelect.value === 'other') {
+                customUrlContainer.classList.remove('d-none');
+            } else {
+                customUrlContainer.classList.add('d-none');
+            }
+            updateFormPreview();
+        }
+
+        function generateFormPreviewHtml(targetUrl, payload) {
+            const fields = [
+                { name: 'ssoToken', value: payload.ssoToken },
+                { name: 'channelId', value: payload.channelId },
+                { name: 'productCode', value: payload.productCode },
+                { name: 'subProductCode', value: payload.subProductCode }
+            ];
+
+            if (payload.operation) {
+                fields.push({ name: 'operation', value: payload.operation });
+            }
+            if (payload.agentId) {
+                fields.push({ name: 'agentId', value: payload.agentId });
+            }
+            if (payload.transactionDetails) {
+                fields.push({ name: 'transactionDetails', value: JSON.stringify(payload.transactionDetails) });
+            }
+            if (payload.partnerConfig) {
+                fields.push({ name: 'partnerConfig', value: JSON.stringify(payload.partnerConfig) });
+            }
+
+            let html = `<span class="tag">&lt;form</span> <span class="attr">method</span>=<span class="value">"POST"</span> <span class="attr">action</span>=<span class="value">"${escapeHtml(targetUrl)}"</span><span class="tag">&gt;</span>\n`;
+            
+            fields.forEach(f => {
+                html += `  <span class="tag">&lt;input</span> <span class="attr">type</span>=<span class="value">"hidden"</span> <span class="attr">name</span>=<span class="value">"${f.name}"</span> <span class="attr">value</span>=<span class="value">"${escapeHtml(f.value)}"</span> <span class="tag">/&gt;</span>\n`;
+            });
+
+            html += `<span class="tag">&lt;/form&gt;</span>`;
+            return html;
+        }
+
+        function generateRawFormHtml(targetUrl, payload) {
+            const fields = [
+                { name: 'ssoToken', value: payload.ssoToken },
+                { name: 'channelId', value: payload.channelId },
+                { name: 'productCode', value: payload.productCode },
+                { name: 'subProductCode', value: payload.subProductCode }
+            ];
+
+            if (payload.operation) {
+                fields.push({ name: 'operation', value: payload.operation });
+            }
+            if (payload.agentId) {
+                fields.push({ name: 'agentId', value: payload.agentId });
+            }
+            if (payload.transactionDetails) {
+                fields.push({ name: 'transactionDetails', value: JSON.stringify(payload.transactionDetails) });
+            }
+            if (payload.partnerConfig) {
+                fields.push({ name: 'partnerConfig', value: JSON.stringify(payload.partnerConfig) });
+            }
+
+            let html = `<form method="POST" action="${escapeHtml(targetUrl)}">\n`;
+            
+            fields.forEach(f => {
+                html += `  <input type="hidden" name="${f.name}" value="${escapeHtml(f.value)}" />\n`;
+            });
+
+            html += `  <button type="submit">Submit SSO</button>\n`;
+            html += `</form>`;
+            return html;
+        }
+
+        function updateFormPreview() {
+            if (!payloadData) return;
+
+            const environment = getEnvironmentUrl();
+            const targetUrl = environment + '/api/sso';
+            
+            document.getElementById('targetUrl').value = targetUrl;
+            document.getElementById('formPreview').innerHTML = generateFormPreviewHtml(targetUrl, payloadData);
+        }
+
+        function submitSso() {
+            clearError('step4Error');
+            const submitButton = document.getElementById('submitSsoBtn');
+
+            try {
+                if (!payloadData) throw new Error('Build payload first (Step 3)');
+                if (!payloadData.ssoToken) throw new Error('ssoToken is missing');
+
+                const environment = getEnvironmentUrl();
+                if (!environment) throw new Error('Please enter a custom URL');
+                const targetUrl = environment + '/api/sso';
+
+                const form = document.getElementById('hiddenSsoForm');
+                form.action = targetUrl;
+
+                document.getElementById('formSsoToken').value = payloadData.ssoToken;
+                document.getElementById('formChannelId').value = payloadData.channelId;
+                document.getElementById('formProductCode').value = payloadData.productCode;
+                document.getElementById('formSubProductCode').value = payloadData.subProductCode;
+                document.getElementById('formOperation').value = payloadData.operation || '';
+                document.getElementById('formAgentId').value = payloadData.agentId || '';
+                document.getElementById('formTransactionDetails').value = payloadData.transactionDetails ? JSON.stringify(payloadData.transactionDetails) : '';
+                document.getElementById('formPartnerConfig').value = payloadData.partnerConfig ? JSON.stringify(payloadData.partnerConfig) : '';
+
+                if (submitButton) submitButton.disabled = true;
+                showSubmitLoader(true);
+
+                setTimeout(() => {
+                    form.submit();
+                    setStepStatus('step4', 'completed');
+                    setTimeout(() => {
+                        showSubmitLoader(false);
+                        if (submitButton) submitButton.disabled = false;
+                    }, 1800);
+                }, 120);
+
+            } catch (error) {
+                showSubmitLoader(false);
+                if (submitButton) submitButton.disabled = false;
+                showError('step4Error', error.message);
+                setStepStatus('step4', 'error');
+            }
+        }
+
+        function copyFormHtml() {
+            if (!payloadData) {
+                alert('Build payload first');
+                return;
+            }
+            const environment = getEnvironmentUrl();
+            if (!environment) {
+                alert('Please enter a custom URL');
+                return;
+            }
+            const targetUrl = environment + '/api/sso';
+            const html = generateRawFormHtml(targetUrl, payloadData);
+            navigator.clipboard.writeText(html).then(() => alert('Form HTML copied!'));
+        }
+
+        // ==================== INITIALIZATION ====================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const runInitialCurl = () => {
+                if (document.getElementById('curlCommand')) {
+                    generateCurl();
+                }
+            };
+
+            if ('requestIdleCallback' in window) {
+                requestIdleCallback(runInitialCurl, { timeout: 2000 });
+            } else {
+                setTimeout(runInitialCurl, 800);
+            }
+        });
+
+        document.getElementById('environment').addEventListener('change', updateFormPreview);
+        document.getElementById('curlBaseUrl').addEventListener('change', () => {
+            const customContainer = document.getElementById('customCurlUrlContainer');
+            if (document.getElementById('curlBaseUrl').value === 'custom') {
+                customContainer.classList.remove('d-none');
+            } else {
+                customContainer.classList.add('d-none');
+            }
+            generateCurl();
+        });
+
+        // Debounce helper for async generateCurl
+        let curlTimeout = null;
+        document.querySelectorAll('#mobileNumber, #username, #productId, #lmsId, #source, #secret').forEach(el => {
+            el.removeAttribute('oninput');
+            el.addEventListener('input', () => {
+                clearTimeout(curlTimeout);
+                curlTimeout = setTimeout(() => generateCurl(), 150);
+            });
+        });
+    </script>
+</body>
+
+</html>

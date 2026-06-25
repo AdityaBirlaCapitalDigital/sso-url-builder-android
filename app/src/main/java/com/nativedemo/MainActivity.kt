@@ -16,7 +16,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "SsoUrlBuilder"
-        private const val HTML_ASSET_URL = "file:///android_asset/sso-url-builder-v4.html"
+      private const val HTML_ASSET_URL = "file:///android_asset/sso-url-builder-v4.1.html"
     }
 
     private lateinit var webView: WebView
@@ -36,12 +36,19 @@ class MainActivity : AppCompatActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+          databaseEnabled = true
             allowFileAccess = true
             allowContentAccess = true
             javaScriptCanOpenWindowsAutomatically = true
+          setSupportZoom(false)
+          setSupportMultipleWindows(false)
+          loadsImagesAutomatically = true
+          blockNetworkImage = false
+          useWideViewPort = true
+          loadWithOverviewMode = true
             mediaPlaybackRequiresUserGesture = false
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            cacheMode = WebSettings.LOAD_DEFAULT
+          cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
         }
 
         WebView.setWebContentsDebuggingEnabled(true)
