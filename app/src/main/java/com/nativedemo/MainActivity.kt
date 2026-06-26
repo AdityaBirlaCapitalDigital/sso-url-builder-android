@@ -3,8 +3,10 @@ package com.nativedemo
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -40,23 +42,32 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        cookieManager.setAcceptThirdPartyCookies(webView, true)
+
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-          databaseEnabled = true
+            databaseEnabled = true
             allowFileAccess = true
             allowContentAccess = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
             javaScriptCanOpenWindowsAutomatically = true
-          setSupportZoom(false)
-          setSupportMultipleWindows(false)
-          loadsImagesAutomatically = true
-          blockNetworkImage = false
-          useWideViewPort = true
-          loadWithOverviewMode = true
+            setSupportZoom(false)
+            setSupportMultipleWindows(false)
+            loadsImagesAutomatically = true
+            blockNetworkImage = false
+            useWideViewPort = true
+            loadWithOverviewMode = true
             mediaPlaybackRequiresUserGesture = false
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-          cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+            cacheMode = WebSettings.LOAD_DEFAULT
         }
+
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        webView.setInitialScale(0)
 
         WebView.setWebContentsDebuggingEnabled(true)
         webView.addJavascriptInterface(NativeBridge(), "NativeBridge")
