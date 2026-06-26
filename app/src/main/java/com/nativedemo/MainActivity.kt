@@ -1,6 +1,7 @@
 package com.nativedemo
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -20,6 +21,7 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -29,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var webView: WebView
+    private var isQuickStepInjected = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,10 +67,23 @@ class MainActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             cacheMode = WebSettings.LOAD_DEFAULT
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+              safeBrowsingEnabled = true
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+              offscreenPreRaster = true
+            }
         }
 
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         webView.setInitialScale(0)
+          webView.overScrollMode = View.OVER_SCROLL_NEVER
+          webView.isScrollbarFadingEnabled = true
+
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, true)
+          }
 
         WebView.setWebContentsDebuggingEnabled(true)
         webView.addJavascriptInterface(NativeBridge(), "NativeBridge")
@@ -76,7 +92,10 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 Log.d(TAG, "Page loaded: $url")
-                injectQuickStepOne()
+            if (!isQuickStepInjected) {
+              injectQuickStepOne()
+              isQuickStepInjected = true
+            }
             }
 
             override fun onReceivedError(
@@ -96,52 +115,80 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-      inner class NativeBridge {
+    inner class NativeBridge {
         @JavascriptInterface
         fun postJson(url: String, headersJson: String, bodyJson: String): String {
-          return try {
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 15000
-            connection.readTimeout = 20000
-            connection.doOutput = true
-
-            val headers = JSONObject(headersJson)
-            val keys = headers.keys()
-            while (keys.hasNext()) {
-              val key = keys.next()
-              connection.setRequestProperty(key, headers.optString(key))
-            }
-
-            OutputStreamWriter(connection.outputStream).use { writer ->
-              writer.write(bodyJson)
-              writer.flush()
-            }
-
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val responseBody = if (stream != null) {
-              BufferedReader(InputStreamReader(stream)).use { reader ->
-                reader.readText()
-              }
-            } else {
-              ""
-            }
-
-            JSONObject().apply {
-              put("ok", status in 200..299)
-              put("status", status)
-              put("body", responseBody)
-            }.toString()
-          } catch (e: Exception) {
-            JSONObject().apply {
-              put("ok", false)
-              put("status", 0)
-              put("error", e.message ?: "Network error")
-            }.toString()
-          }
+            return postJsonInternal(url, headersJson, bodyJson)
         }
-      }
+
+        @JavascriptInterface
+        fun postJsonAsync(url: String, headersJson: String, bodyJson: String, callbackId: String) {
+            thread(start = true) {
+                val result = postJsonInternal(url, headersJson, bodyJson)
+                val escapedResult = JSONObject.quote(result)
+                val escapedCallbackId = JSONObject.quote(callbackId)
+
+                runOnUiThread {
+                    val callbackScript = """
+                        (function() {
+                          var id = $escapedCallbackId;
+                          if (!window.__nativeBridgeCallbacks || !window.__nativeBridgeCallbacks[id]) return;
+                          try {
+                            window.__nativeBridgeCallbacks[id]($escapedResult);
+                          } finally {
+                            delete window.__nativeBridgeCallbacks[id];
+                          }
+                        })();
+                    """.trimIndent()
+                    webView.evaluateJavascript(callbackScript, null)
+                }
+            }
+        }
+
+        private fun postJsonInternal(url: String, headersJson: String, bodyJson: String): String {
+            return try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 15000
+                connection.readTimeout = 20000
+                connection.doOutput = true
+
+                val headers = JSONObject(headersJson)
+                val keys = headers.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    connection.setRequestProperty(key, headers.optString(key))
+                }
+
+                OutputStreamWriter(connection.outputStream).use { writer ->
+                    writer.write(bodyJson)
+                    writer.flush()
+                }
+
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val responseBody = if (stream != null) {
+                    BufferedReader(InputStreamReader(stream)).use { reader ->
+                        reader.readText()
+                    }
+                } else {
+                    ""
+                }
+
+                JSONObject().apply {
+                    put("ok", status in 200..299)
+                    put("status", status)
+                    put("body", responseBody)
+                }.toString()
+            } catch (e: Exception) {
+                JSONObject().apply {
+                    put("ok", false)
+                    put("status", 0)
+                    put("error", e.message ?: "Network error")
+                }.toString()
+            }
+        }
+    }
 
     private fun injectQuickStepOne() {
         val js = """
@@ -184,7 +231,33 @@ class MainActivity : AppCompatActivity() {
                   throw new Error('Native bridge unavailable for API call');
                 }
 
-                const nativeResponse = window.NativeBridge.postJson(endpoint, JSON.stringify(headers), body);
+                window.__nativeBridgeCallbacks = window.__nativeBridgeCallbacks || {};
+                const callbackId = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+
+                const nativeResponse = await new Promise((resolve, reject) => {
+                  const timeoutId = setTimeout(() => {
+                    delete window.__nativeBridgeCallbacks[callbackId];
+                    reject(new Error('UUID API timeout'));
+                  }, 30000);
+
+                  window.__nativeBridgeCallbacks[callbackId] = (rawResult) => {
+                    clearTimeout(timeoutId);
+                    resolve(rawResult || '{}');
+                  };
+
+                  if (window.NativeBridge && typeof window.NativeBridge.postJsonAsync === 'function') {
+                    window.NativeBridge.postJsonAsync(endpoint, JSON.stringify(headers), body, callbackId);
+                  } else {
+                    try {
+                      resolve(window.NativeBridge.postJson(endpoint, JSON.stringify(headers), body));
+                    } catch (fallbackError) {
+                      clearTimeout(timeoutId);
+                      delete window.__nativeBridgeCallbacks[callbackId];
+                      reject(fallbackError);
+                    }
+                  }
+                });
+
                 const response = JSON.parse(nativeResponse || '{}');
 
                 if (!response.ok) {
@@ -212,6 +285,8 @@ class MainActivity : AppCompatActivity() {
                 '<div class="config-card">' +
                   '<h6 class="text-info mb-2">Quick Step 1</h6>' +
                   '<p class="small text-muted-custom mb-2">Tap once to call redirectionV2 and auto-fill Step 2 with a valid UUID.</p>' +
+                  '<label for="autoMobileNumber" class="form-label small">Mobile Number</label>' +
+                  '<input id="autoMobileNumber" type="text" class="form-control small-input mb-2" value="9008878907" inputmode="numeric" autocomplete="off" />' +
                   '<div class="small text-muted-custom mb-3">Using default profile and UAT1 endpoint for speed.</div>' +
                   '<button id="autoUuidBtn" class="btn btn-success">Auto Create UUID</button>' +
                   '<div id="autoUuidResult" class="alert alert-success py-2 small d-none mt-3"></div>' +
@@ -221,6 +296,7 @@ class MainActivity : AppCompatActivity() {
               var button = document.getElementById('autoUuidBtn');
               var result = document.getElementById('autoUuidResult');
               var error = document.getElementById('autoUuidError');
+              var mobileInput = document.getElementById('autoMobileNumber');
               if (!button) return;
 
               button.addEventListener('click', async function() {
@@ -231,8 +307,13 @@ class MainActivity : AppCompatActivity() {
                 if (error) error.classList.add('d-none');
 
                 try {
+                  var mobileNumber = (mobileInput && mobileInput.value ? mobileInput.value : '').trim();
+                  if (!mobileNumber) {
+                    throw new Error('Mobile number is required');
+                  }
+
                   var config = {
-                    mobileNumber: '9008878907',
+                    mobileNumber: mobileNumber,
                     username: 'Manish Hundekar',
                     productId: 'goldloan',
                     lmsId: '00QBl00000EajeTMAR',
